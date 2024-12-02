@@ -4,53 +4,46 @@ var safeCount = 0;
 var unsafeCount = 0;
 
 const decoder = new TextDecoder();
-for await (const chunk of streamToAsyncIterable(await GetInput())) {
-    const lines = decoder.decode(chunk).split('\n');
-    for (const line of lines) {
-        console.log(`Line: ${line}`);
-        const lineNumbers = line.split(' ');
-        var safe = true;
-        var unsafeLineCount = 0;
-        var increasing = null;
-        for (var j = 0; j < lineNumbers.length; j++) {
-            const lastNumber = parseInt(lineNumbers[j - 1]) || 0;
-            const number = parseInt(lineNumbers[j]);
-            if (lastNumber == 0) continue;
-            if(increasing == null) increasing = number > lastNumber;
-            if (increasing && number <= lastNumber){
-                unsafeLineCount++;
-                if (unsafeLineCount > 1) {
-                    safe = false;
-                    break;
-                }
-            }
-            if (!increasing && number >= lastNumber){
-                unsafeLineCount++;
-                if (unsafeLineCount > 1) {
-                    safe = false;
-                    break;
-                }
-            }
-            
-            var distance = number - lastNumber;
-            if (!increasing) distance *= -1;
-            
-            if (distance < 1 || distance > 3){
-                unsafeLineCount++;
-                if (unsafeLineCount > 1) {
-                    safe = false;
-                    break;
-                }
-            }
-            if (!safe) {
-                console.log(`Unsafe: ${lineNumbers[j - 1]} ${lineNumbers[j]}`);
-                break;
-            };
-        }
-        if (safe) safeCount++;
-        else unsafeCount++;
-        console.log(`Safe: ${safe}`);
-    }
 
-    console.log(`Safe Count: ${safeCount}, Unsafe Count: ${unsafeCount}`);
+function isSafeReport(lineNumbers: string[]) {
+  var increasing = null;
+  var safe = true;
+  for (var j = 1; j < lineNumbers.length; j++) {
+    const lastNumber = parseInt(lineNumbers[j - 1]) || 0;
+    const number = parseInt(lineNumbers[j]);
+    if (lastNumber == 0) continue;
+    if(increasing == null) increasing = number > lastNumber;
+    if (increasing && number <= lastNumber) safe = false;
+    if (!increasing && number >= lastNumber) safe = false;
+    
+    var distance = number - lastNumber;
+    if (!increasing) distance *= -1;
+    
+    if (distance < 1 || distance > 3) safe = false;
+  }
+  return safe;
+}
+
+for await (const chunk of streamToAsyncIterable(await GetInput())) {
+  const lines = decoder.decode(chunk).split("\n");
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const lineNumbers = line.split(" ");
+    var safe = isSafeReport(lineNumbers);
+
+    if (!safe) {
+      lineNumbers.forEach((_, i) => {
+        if (safe) return;
+        const modifiedReport = lineNumbers
+          .slice(0, i)
+          .concat(lineNumbers.slice(i + 1));
+        safe = isSafeReport(modifiedReport);
+      });
+    }
+    if (safe) safeCount++;
+    else unsafeCount++;
+  }
+
+  console.log(`Safe Count: ${safeCount}, Unsafe Count: ${unsafeCount}`);
 }
